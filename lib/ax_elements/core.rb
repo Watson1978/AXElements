@@ -1,3 +1,6 @@
+# @todo This should not be in the top level namespace...
+require 'key_coder'
+
 ##
 # Namespace for all the accessibility objects, as well as core
 # abstraction layer that that interacts with OS X Accessibility
@@ -622,12 +625,24 @@ class << AX
   # @endgroup
 
   ##
+  # @todo Report MacRuby bug. Constants defined in a C extension
+  #       require the fully qualified constant name to resolve when
+  #       they should not. Example: AX::KEYCODE map was defined in
+  #       the C extension and inside methods from the module it would
+  #       not resolve unless the constant was written as AX::KEYCODE_MAP.
+  #
+  # @note Hardcoded values come from `/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/Headers/Events.h`. This cache makes the assumption that
+  #       the keyboard layout will not change during its lifetime.
+  #
   # Map of characters to keycodes. The map is generated at boot time in
   # order to support multiple keyboard layouts.
   #
-  # @return [Hash]
-  KEYCODE_MAP = {}
-  require 'key_coder'
+  # @return [Hash{String=>Fixnum}]
+  KEYCODE_MAP = Hash.new do |h,k|
+    # somehow start cycling through until we find it
+    # or bail
+    h[k] = keycode_for(k)
+  end
 
   ##
   # Parse a string into a list of keyboard events to be executed in
@@ -639,10 +654,10 @@ class << AX
     sequence = []
     string.each_char do |char|
       if char.match(/[A-Z]/)
-        code  = AX::KEYCODE_MAP[char.downcase]
+        code  = KEYCODE_MAP[char.downcase]
         event = [[56,true], [code,true], [code,false], [56,false]]
       else
-        code  = AX::KEYCODE_MAP[char]
+        code  = KEYCODE_MAP[char]
         event = [[code,true],[code,false]]
       end
       sequence.concat event
